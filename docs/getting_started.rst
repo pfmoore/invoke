@@ -248,3 +248,95 @@ neat and tidy::
     @task
     def restart(ctx):
         ctx.run("restart apache2")
+
+
+Context as configuration
+========================
+
+`.Context` objects handle "core" config options affecting the behavior of
+`.~runner.run` transparently - but they also hold configuration state your
+tasks can reference or modify using a dict-like interface. Let's look at why
+you might want to do this.
+
+The setup
+---------
+
+For example, say you have a set of tasks operating on a filesystem path. A
+first draft would probably hardcode the path::
+
+    from invoke import task, run
+
+    @task
+    def clean():
+        run("rm -rf mypath")
+
+    @task
+    def build():
+        run("build -o mypath")
+
+Then maybe you'd factor that out to a module level variable::
+
+    path = "mypath"
+
+    @task
+    def clean():
+        run("rm -rf {0}".format(path))
+
+    @task
+    def build():
+        run("build -o {0}".format(path))
+
+We can also allow parameterization::
+
+    default_path = "mypath"
+
+    @task
+    def clean(path=default_path):
+        run("rm -rf {0}".format(path))
+
+    @task
+    def build(path=default_path):
+        run("build -o {0}".format(path))
+
+This task module works for a single set of users, but what if we want to allow
+reuse? Somebody may want to use this module with a different default path.
+While you *can* kludge it using non-contextualized tasks, using a context to
+configure these options is usually the better solution [1]_.
+
+From Collection to Context
+--------------------------
+
+The `~invoke.context.Context` object handed to tasks offers access to various
+config options - including ones set on the loaded `.Collection` objects.
+`.Collections`' `~.Collection.configure` method associates a config key with a
+config value, which is then available on the `~invoke.context.Context` via dict
+syntax.
+
+This makes it straightforward for tasks to check config values prior to using
+internal defaults, and for importing code to provide them. First,
+we update our distributed module to use contexts & allow an override hierarchy
+(runtime beats config, which beats local)::
+
+    from invoke import ctask as task
+
+    default_path = "mypath"
+
+    @task
+    def clean(ctx, path=None):
+        ctx.run("rm -rf {0}".format(path or ctx['path'] or default_path))
+
+    @task
+    def build(ctx, path=None):
+        ctx.run("build -o {0}".format(path or ctx['path'] or default_path))
+
+(Clearly, if we added more tasks here, we'd factor out the overriding into a
+subroutine.)
+
+
+.. rubric:: Footnotes
+
+.. [1]
+    Copying and modifying the file breaks code reuse; overriding the
+    module-level ``default_path`` variable won't play well with concurrency;
+    wrapping the tasks with different default arguments works but is fragile
+    and adds boilerplate.
