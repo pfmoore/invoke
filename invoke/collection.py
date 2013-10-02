@@ -16,8 +16,13 @@ class Collection(object):
         """
         Create a new task collection/namespace.
 
-        May call with no arguments and use e.g. `.add_task`/`.add_collection`
-        to insert objects, e.g.::
+        `.Collection` offers a set of methods for building a collection of
+        tasks from scratch, plus a convenient constructor wrapping said API.
+
+        **The method approach**
+
+        May initialize with no arguments and use methods (e.g.
+        `.add_task`/`.add_collection`) to insert objects::
 
             c = Collection()
             c.add_task(some_task)
@@ -35,16 +40,22 @@ class Collection(object):
             # (assuming the task objects were actually named the same as the
             # variables we're using :))
 
-        Otherwise, all ``*args`` are expected to be `.Task` or `.Collection`
-        instances which will be passed to `.add_task`/`.add_collection` as
-        appropriate. Module objects are also valid (as they are for
-        `.add_collection`). For example, the below snippet results in the same
-        two task identifiers as the one above::
+        For details, see the API docs for the rest of the class.
+
+        **The constructor approach**
+
+        All ``*args`` given to `.Collection` (besides the optional first 'name'
+        argument) are expected to be `.Task` or `.Collection` instances which
+        will be passed to `.add_task`/`.add_collection` as appropriate. Module
+        objects are also valid (as they are for `.add_collection`). For
+        example, the below snippet results in the same two task identifiers as
+        the one above::
 
             ns = Collection(top_level_task, Collection('docs', doc_task))
 
-        If any ``**kwargs`` are given, the keywords are used as the initial
-        name arguments for the respective values::
+        If any ``**kwargs`` (besides those listed below) are given, the
+        keywords are used as the initial name arguments for the respective
+        values::
 
             ns = Collection(
                 top_level_task=some_other_task,
@@ -57,6 +68,13 @@ class Collection(object):
             ns = Collection()
             ns.add_task(some_other_task, 'top_level_task')
             ns.add_collection(docs, 'docs')
+
+        **Reserved keyword arguments**
+
+        :param config:
+            A dict containing configuration options, to be merged into any
+            `~invoke.context.Context` object handed to contextualized tasks.
+            Useful for having "per-module" default settings.
         """
         # Initialize
         self.tasks = Lexicon()
@@ -124,7 +142,7 @@ class Collection(object):
         """
         Adds ``Task`` ``task`` to this collection.
 
-        The name the task is bound with is taken, in order, from::
+        The name the task is bound with is taken, in order, from:
 
         * The ``name`` kwarg;
         * If that is not given, the task object's ``name`` attribute;
