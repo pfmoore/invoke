@@ -135,3 +135,26 @@ class CLIParsing(Spec):
             a = r[0].args
             eq_(a.b.value, True)
             eq_(a.v.value, True)
+
+    def run_from_commandline(self):
+        from subprocess import Popen
+        from tempfile import mkdtemp
+        from shutil import rmtree
+        import os
+        import sys
+        d = mkdtemp()
+        try:
+            tasks = os.path.join(d, 'tasks.py')
+            with open(tasks, "w") as f:
+                f.write("from invoke import task\n")
+                f.write("@task\n")
+                f.write("def hello(ctx):\n")
+                f.write("""    ctx.run('python -c "print(123)"')\n""")
+            proc = Popen([sys.executable, '-m', 'invoke', 'simple'],
+                    universal_newlines=True, cwd=d)
+            out, err = proc.communicate()
+            eq_(out, "123\n")
+            eq_(err, "")
+            eq_(proc.returncode, 0)
+        finally:
+            rmtree(d)
